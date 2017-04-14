@@ -168,6 +168,12 @@ class ResourceTest < ActiveSupport::TestCase
     assert_equal(MyModule::MyNamespacedResource.resource_for('nested/profile'), MyModule::Nested::ProfileResource)
   end
 
+  def test_resource_for_nested_namespaced_resource
+    assert_equal(JSONAPI::Resource.resource_klass_for('my_module/nested/profile'), MyModule::Nested::ProfileResource)
+    assert_equal(MyModule::MyNamespacedResource.resource_klass_for('my_module/nested/profile'), MyModule::Nested::ProfileResource)
+    assert_equal(MyModule::MyNamespacedResource.resource_klass_for('nested/profile'), MyModule::Nested::ProfileResource)
+  end
+
   def test_relationship_parent_point_to_correct_resource
     assert_equal MyModule::MyNamespacedResource, MyModule::MyNamespacedResource._relationships[:related].parent_resource
   end

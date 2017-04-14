@@ -88,7 +88,7 @@ module JSONAPI
       parse_fields(params[:fields])
       parse_include_directives(params[:include])
       parse_add_operation(params.require(:data))
-    end
+      end
 
     def setup_create_relationship_action(params)
       parse_modify_relationship_action(params, :add)
@@ -106,7 +106,7 @@ module JSONAPI
 
     def setup_destroy_action(params)
       parse_remove_operation(params)
-    end
+      end
 
     def setup_destroy_relationship_action(params)
       parse_modify_relationship_action(params, :remove)
@@ -153,7 +153,7 @@ module JSONAPI
       # Extract the fields for each type from the fields parameters
       if fields.is_a?(ActionController::Parameters)
         fields.each do |field, value|
-          resource_fields = value.split(',') unless value.nil? || value.empty?
+            resource_fields = value.split(',') unless value.nil? || value.empty?
           extracted_fields[field] = resource_fields
         end
       else
@@ -224,16 +224,16 @@ module JSONAPI
       return if included_resources.empty?
 
       begin
-        result = included_resources.compact.map do |included_resource|
+      result = included_resources.compact.map do |included_resource|
           check_include(@resource_klass, included_resource.partition('.'))
-          unformat_key(included_resource).to_s
-        end
+        unformat_key(included_resource).to_s
+      end
 
         @include_directives = JSONAPI::IncludeDirectives.new(@resource_klass, result)
       rescue JSONAPI::Exceptions::InvalidInclude => e
         @errors.concat(e.errors)
         @include_directives = {}
-      end
+    end
     end
 
     def parse_filters(filters)
@@ -262,7 +262,7 @@ module JSONAPI
       @resource_klass._allowed_filters.each do |filter, opts|
         next if opts[:default].nil? || !@filters[filter].nil?
         @filters[filter] = opts[:default]
-      end
+    end
     end
 
     def parse_sort_criteria(sort_criteria)
@@ -273,12 +273,12 @@ module JSONAPI
       end
 
       sorts = []
-      begin
-        raw = URI.unescape(sort_criteria)
+        begin
+          raw = URI.unescape(sort_criteria)
         sorts += CSV.parse_line(raw)
-      rescue CSV::MalformedCSVError
+        rescue CSV::MalformedCSVError
         fail JSONAPI::Exceptions::InvalidSortCriteria.new(format_key(@resource_klass._type), raw)
-      end
+        end
 
       @sort_criteria = sorts.collect do |sort|
         if sort.start_with?('-')
@@ -389,19 +389,19 @@ module JSONAPI
     def parse_to_one_links_object(raw)
       if raw.nil?
         return {
-          type: nil,
-          id: nil
+            type: nil,
+            id: nil
         }
       end
 
       if !(raw.is_a?(Hash) || raw.is_a?(ActionController::Parameters)) ||
-         raw.keys.length != 2 || !(raw.key?('type') && raw.key?('id'))
+          raw.keys.length != 2 || !(raw.key?('type') && raw.key?('id'))
         fail JSONAPI::Exceptions::InvalidLinksObject.new
       end
 
       {
-        type: unformat_key(raw['type']).to_s,
-        id: raw['id']
+          type: unformat_key(raw['type']).to_s,
+          id: raw['id']
       }
     end
 
@@ -430,33 +430,33 @@ module JSONAPI
 
       params.each do |key, value|
         case key.to_s
-        when 'relationships'
-          value.each do |link_key, link_value|
-            param = unformat_key(link_key)
+          when 'relationships'
+            value.each do |link_key, link_value|
+              param = unformat_key(link_key)
             relationship = @resource_klass._relationship(param)
 
-            if relationship.is_a?(JSONAPI::Relationship::ToOne)
+              if relationship.is_a?(JSONAPI::Relationship::ToOne)
               checked_to_one_relationships[param] = parse_to_one_relationship(link_value, relationship)
-            elsif relationship.is_a?(JSONAPI::Relationship::ToMany)
+              elsif relationship.is_a?(JSONAPI::Relationship::ToMany)
               parse_to_many_relationship(link_value, relationship) do |result_val|
-                checked_to_many_relationships[param] = result_val
+                  checked_to_many_relationships[param] = result_val
+                end
               end
             end
-          end
-        when 'id'
+          when 'id'
           checked_attributes['id'] = unformat_value(:id, value)
-        when 'attributes'
-          value.each do |key, value|
-            param = unformat_key(key)
+          when 'attributes'
+            value.each do |key, value|
+              param = unformat_key(key)
             checked_attributes[param] = unformat_value(param, value)
-          end
+            end
         end
       end
 
       return {
-        'attributes' => checked_attributes,
-        'to_one' => checked_to_one_relationships,
-        'to_many' => checked_to_many_relationships
+          'attributes' => checked_attributes,
+          'to_one' => checked_to_one_relationships,
+          'to_many' => checked_to_many_relationships
       }.deep_transform_keys { |key| unformat_key(key) }
     end
 
@@ -526,45 +526,45 @@ module JSONAPI
 
       params.each do |key, value|
         case key.to_s
-        when 'relationships'
-          value.keys.each do |links_key|
-            unless formatted_allowed_fields.include?(links_key.to_sym)
-              if JSONAPI.configuration.raise_if_parameters_not_allowed
+          when 'relationships'
+            value.keys.each do |links_key|
+              unless formatted_allowed_fields.include?(links_key.to_sym)
+                if JSONAPI.configuration.raise_if_parameters_not_allowed
                 fail JSONAPI::Exceptions::ParameterNotAllowed.new(links_key)
-              else
-                params_not_allowed.push(links_key)
-                value.delete links_key
+                else
+                  params_not_allowed.push(links_key)
+                  value.delete links_key
+                end
               end
             end
-          end
-        when 'attributes'
+          when 'attributes'
           value.each do |attr_key, attr_value|
-            unless formatted_allowed_fields.include?(attr_key.to_sym)
-              if JSONAPI.configuration.raise_if_parameters_not_allowed
+              unless formatted_allowed_fields.include?(attr_key.to_sym)
+                if JSONAPI.configuration.raise_if_parameters_not_allowed
                 fail JSONAPI::Exceptions::ParameterNotAllowed.new(attr_key)
-              else
-                params_not_allowed.push(attr_key)
-                value.delete attr_key
+                else
+                  params_not_allowed.push(attr_key)
+                  value.delete attr_key
+                end
               end
             end
-          end
-        when 'type'
-        when 'id'
-          unless formatted_allowed_fields.include?(:id)
-            if JSONAPI.configuration.raise_if_parameters_not_allowed
+          when 'type'
+          when 'id'
+            unless formatted_allowed_fields.include?(:id)
+              if JSONAPI.configuration.raise_if_parameters_not_allowed
               fail JSONAPI::Exceptions::ParameterNotAllowed.new(:id)
-            else
-              params_not_allowed.push(:id)
-              params.delete :id
+              else
+                params_not_allowed.push(:id)
+                params.delete :id
+              end
             end
-          end
-        else
-          if JSONAPI.configuration.raise_if_parameters_not_allowed
-            fail JSONAPI::Exceptions::ParameterNotAllowed.new(key)
           else
-            params_not_allowed.push(key)
-            params.delete key
-          end
+            if JSONAPI.configuration.raise_if_parameters_not_allowed
+            fail JSONAPI::Exceptions::ParameterNotAllowed.new(key)
+            else
+              params_not_allowed.push(key)
+              params.delete key
+            end
         end
       end
 
@@ -581,20 +581,20 @@ module JSONAPI
     def parse_add_relationship_operation(verified_params, relationship, parent_key)
       if relationship.is_a?(JSONAPI::Relationship::ToMany)
         @operations.push JSONAPI::Operation.new(:create_to_many_relationships,
-          resource_klass,
-          context: @context,
-          resource_id: parent_key,
-          relationship_type: relationship.name,
-          data: verified_params[:to_many].values[0]
+            resource_klass,
+            context: @context,
+            resource_id: parent_key,
+            relationship_type: relationship.name,
+            data: verified_params[:to_many].values[0]
         )
       end
     end
 
     def parse_update_relationship_operation(verified_params, relationship, parent_key)
       options = {
-        context: @context,
-        resource_id: parent_key,
-        relationship_type: relationship.name
+          context: @context,
+          resource_id: parent_key,
+          relationship_type: relationship.name
       }
 
       if relationship.is_a?(JSONAPI::Relationship::ToOne)
@@ -659,9 +659,9 @@ module JSONAPI
 
     def parse_remove_relationship_operation(params, relationship, parent_key)
       operation_base_args = [resource_klass].push(
-        context: @context,
-        resource_id: parent_key,
-        relationship_type: relationship.name
+          context: @context,
+          resource_id: parent_key,
+          relationship_type: relationship.name
       )
 
       if relationship.is_a?(JSONAPI::Relationship::ToMany)
