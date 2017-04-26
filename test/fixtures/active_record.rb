@@ -470,6 +470,7 @@ class Like < ActiveRecord::Base
 end
 
 class Breed
+  include ActiveModel::Model
 
   def initialize(id = nil, name = nil)
     if id.nil?
@@ -488,19 +489,7 @@ class Breed
     $breed_data.remove(@id)
   end
 
-  def valid?(context = nil)
-    @errors.clear
-    if name.is_a?(String) && name.length > 0
-      return true
-    else
-      @errors.add(:name, "can't be blank")
-      return false
-    end
-  end
-
-  def errors
-    @errors
-  end
+  validates :name, presence: true
 end
 
 class Book < ActiveRecord::Base
@@ -1159,23 +1148,36 @@ class EmployeeResource < JSONAPI::Resource
   model_name 'Person'
 end
 
-class BreedResource < JSONAPI::Resource
-  attribute :name, format: :title
-
-  # This is unneeded, just here for testing
-  routing_options param: :id
-
-  def self.find(filters, options = {})
+class BreedRecordAccessor < JSONAPI::RecordAccessor
+  # Records
+  def find(filters, options = {})
     breeds = []
     $breed_data.breeds.values.each do |breed|
-      breeds.push(BreedResource.new(breed, options[:context]))
+      breeds.push(breed)
     end
     breeds
   end
 
-  def self.find_by_key(id, options = {})
-    BreedResource.new($breed_data.breeds[id.to_i], options[:context])
+  def find_by_key(key, options = {})
+    $breed_data.breeds[key.to_i]
   end
+
+  def find_by_keys(keys, options = {})
+    breeds = []
+    keys.each do |key|
+      breeds.push($breed_data.breeds[key.to_i])
+    end
+    breeds
+  end
+end
+
+class BreedResource < JSONAPI::Resource
+  record_accessor BreedRecordAccessor
+
+  attribute :name, format: :title
+
+  # This is unneeded, just here for testing
+  routing_options param: :id
 
   def _save
     super

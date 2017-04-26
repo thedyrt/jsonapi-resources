@@ -401,6 +401,55 @@ module JSONAPI
       :completed
     end
 
+    def foreign_key(relationship_name, options = {})
+      relationship = self.class._relationships[relationship_name.to_sym]
+
+      if relationship.belongs_to?
+        _model.method(relationship.foreign_key).call
+      else
+        records = self.class._record_accessor.find_by_relationship(self, relationship_name, options)
+        return nil if records.nil?
+        records.public_send(relationship.resource_klass._primary_key)
+      end
+    end
+
+    def foreign_keys(relationship_name, options = {})
+      relationship = self.class._relationships[relationship_name.to_sym]
+
+      records = self.class._record_accessor.find_by_relationship(self, relationship_name, options)
+      records.collect do |record|
+        record.public_send(relationship.resource_klass._primary_key)
+      end
+    end
+
+    def related_resource(relationship_name, options = {})
+      relationship = self.class._relationships[relationship_name.to_sym]
+
+      # ToDo: Can this be simplified like related_resources ?
+      if relationship.polymorphic?
+        associated_model = self.class._record_accessor.find_by_relationship(self, relationship_name, options)
+        resource_klass = self.class.resource_klass_for_model(associated_model) if associated_model
+        return resource_klass.new(associated_model, context) if resource_klass && associated_model
+      else
+        resource_klass = relationship.resource_klass
+        if resource_klass
+          associated_model = self.class._record_accessor.find_by_relationship(self, relationship_name, options)
+          return associated_model ? resource_klass.new(associated_model, context) : nil
+        end
+      end
+    end
+
+    def related_resources(relationship_name, options = {})
+      relationship = self.class._relationships[relationship_name.to_sym]
+      relationship_resource_klass = relationship.resource_klass
+
+      records = self.class._record_accessor.find_by_relationship(self, relationship_name, options)
+      return records.collect do |record|
+        klass = relationship.polymorphic? ? self.class.resource_klass_for_model(record) : relationship_resource_klass
+        klass.new(record, context)
+      end
+    end
+
     class << self
       def inherited(subclass)
         subclass.abstract(false)
@@ -427,7 +476,7 @@ module JSONAPI
 
         check_reserved_resource_name(subclass._type, subclass.name)
 
-        subclass.record_accessor = @_record_accessor_klass
+        subclass.record_accessor(@_record_accessor_klass)
       end
 
       def rebuild_relationships(relationships)
@@ -631,11 +680,12 @@ module JSONAPI
       end
 
       def find_count(filters, options = {})
-        _record_accessor.find_count(filters, options)
+        _record_accessor.count(filters, options)
       end
 
       def find(filters, options = {})
-        _record_accessor.find_resource(filters, options)
+        records = _record_accessor.find(filters, options)
+        resources_for(records, options[:context])
       end
 
       def resources_for(models, context)
@@ -650,11 +700,13 @@ module JSONAPI
       end
 
       def find_by_keys(keys, options = {})
-        _record_accessor.find_resources_by_keys(keys, options)
+        records = _record_accessor.find_by_keys(keys, options)
+        resources_for(records, options[:context])
       end
 
       def find_by_key(key, options = {})
-        _record_accessor.find_resource_by_key(key, options)
+        record = _record_accessor.find_by_key(key, options)
+        resource_for(record, options[:context])
       end
 
       def verify_filters(filters, context = nil)
@@ -814,7 +866,7 @@ module JSONAPI
         @_record_accessor = _record_accessor_klass.new(self)
       end
 
-      def record_accessor=(record_accessor_klass)
+      def record_accessor(record_accessor_klass)
         @_record_accessor_klass = record_accessor_klass
       end
 
@@ -952,12 +1004,12 @@ module JSONAPI
       def build_belongs_to(relationship)
         foreign_key = relationship.foreign_key
         define_on_resource foreign_key do
-          self.class._record_accessor.foreign_key(self, relationship.name)
+          foreign_key(relationship.name)
         end
 
         # Returns instantiated related resource object or nil
         define_on_resource relationship.name do |options = {}|
-          self.class._record_accessor.related_resource(self, relationship.name, options)
+          related_resource(relationship.name, options)
         end
       end
 
@@ -966,12 +1018,12 @@ module JSONAPI
 
         # Returns primary key name of related resource class
         define_on_resource foreign_key do
-          self.class._record_accessor.foreign_key(self, relationship.name)
+          foreign_key(relationship.name)
         end
 
         # Returns instantiated related resource object or nil
         define_on_resource relationship.name do |options = {}|
-          self.class._record_accessor.related_resource(self, relationship.name, options)
+          related_resource(relationship.name, options)
         end
       end
 
@@ -980,12 +1032,12 @@ module JSONAPI
 
         # Returns array of primary keys of related resource classes
         define_on_resource foreign_key do
-          self.class._record_accessor.foreign_keys(self, relationship.name)
+          foreign_keys(relationship.name)
         end
 
         # Returns array of instantiated related resource objects
         define_on_resource relationship.name do |options = {}|
-          self.class._record_accessor.related_resources(self, relationship.name, options)
+          related_resources(relationship.name, options)
         end
       end
 

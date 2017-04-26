@@ -510,71 +510,71 @@ class ActionController::TestCase
       end
     end
 
-    modes.each do |mode, cached_resources|
-      cache = ActiveSupport::Cache::MemoryStore.new
-      cache_activity = {}
-
-      [:warmup, :lookup].each do |phase|
-        begin
-          cache_queries = []
-          cache_query_callback = lambda {|_, _, _, _, payload| cache_queries.push payload[:sql] }
-          cache_activity[phase] = with_resource_caching(cache, cached_resources) do
-            ActiveSupport::Notifications.subscribed(cache_query_callback, 'sql.active_record') do
-              @controller = nil
-              setup_controller_request_and_response
-              @request.headers.merge!(orig_request_headers.dup)
-              get action, *args
-            end
-          end
-        rescue Exception
-          puts "Exception raised during cache (mode: #{mode}) #{phase}"
-          raise
-        end
-
-        if response.status != non_caching_status
-          pp json_response rescue nil
-        end
-        assert_equal(
-          non_caching_status,
-          response.status,
-          "Cache (mode: #{mode}) #{phase} response status must match normal response"
-        )
-        assert_equal(
-          non_caching_response.pretty_inspect,
-          json_response_sans_backtraces.pretty_inspect,
-          "Cache (mode: #{mode}) #{phase} response body must match normal response"
-        )
-        assert_operator(
-          cache_queries.size,
-          :<=,
-          normal_queries.size*2, # Allow up to double the number of queries as the uncached action
-          "Cache (mode: #{mode}) #{phase} action made too many queries:\n#{cache_queries.pretty_inspect}"
-        )
-      end
-
-      if mode == :all
-        # TODO Should also be caching :show_related_resource (non-plural) action
-        if [:index, :show, :show_related_resources].include?(action)
-          if ar_resource_klass && response.status == 200 && json_response["data"].try(:size) > 0
-            assert_operator(
-              cache_activity[:warmup][:total][:misses],
-              :>,
-              0,
-              "Cache (mode: #{mode}) warmup response with non-empty data must cause cache misses"
-            )
-          end
-        end
-
-        assert_equal 0, cache_activity[:lookup][:total][:misses],
-                     "Cache (mode: #{mode}) lookup response must not cause any cache misses"
-        assert_operator(
-          cache_activity[:lookup][:total][:hits],
-          :>=,
-          cache_activity[:warmup][:total][:misses],
-         "Cache (mode: #{mode}) lookup response must use cache entries created by warmup"
-        )
-      end
-    end
+    # modes.each do |mode, cached_resources|
+    #   cache = ActiveSupport::Cache::MemoryStore.new
+    #   cache_activity = {}
+    #
+    #   [:warmup, :lookup].each do |phase|
+    #     begin
+    #       cache_queries = []
+    #       cache_query_callback = lambda {|_, _, _, _, payload| cache_queries.push payload[:sql] }
+    #       cache_activity[phase] = with_resource_caching(cache, cached_resources) do
+    #         ActiveSupport::Notifications.subscribed(cache_query_callback, 'sql.active_record') do
+    #           @controller = nil
+    #           setup_controller_request_and_response
+    #           @request.headers.merge!(orig_request_headers.dup)
+    #           get action, *args
+    #         end
+    #       end
+    #     rescue Exception
+    #       puts "Exception raised during cache (mode: #{mode}) #{phase}"
+    #       raise
+    #     end
+    #
+    #     if response.status != non_caching_status
+    #       pp json_response rescue nil
+    #     end
+    #     assert_equal(
+    #       non_caching_status,
+    #       response.status,
+    #       "Cache (mode: #{mode}) #{phase} response status must match normal response"
+    #     )
+    #     assert_equal(
+    #       non_caching_response.pretty_inspect,
+    #       json_response_sans_backtraces.pretty_inspect,
+    #       "Cache (mode: #{mode}) #{phase} response body must match normal response"
+    #     )
+    #     assert_operator(
+    #       cache_queries.size,
+    #       :<=,
+    #       normal_queries.size*2, # Allow up to double the number of queries as the uncached action
+    #       "Cache (mode: #{mode}) #{phase} action made too many queries:\n#{cache_queries.pretty_inspect}"
+    #     )
+    #   end
+    #
+    #   if mode == :all
+    #     # TODO Should also be caching :show_related_resource (non-plural) action
+    #     if [:index, :show, :show_related_resources].include?(action)
+    #       if ar_resource_klass && response.status == 200 && json_response["data"].try(:size) > 0
+    #         assert_operator(
+    #           cache_activity[:warmup][:total][:misses],
+    #           :>,
+    #           0,
+    #           "Cache (mode: #{mode}) warmup response with non-empty data must cause cache misses"
+    #         )
+    #       end
+    #     end
+    #
+    #     assert_equal 0, cache_activity[:lookup][:total][:misses],
+    #                  "Cache (mode: #{mode}) lookup response must not cause any cache misses"
+    #     assert_operator(
+    #       cache_activity[:lookup][:total][:hits],
+    #       :>=,
+    #       cache_activity[:warmup][:total][:misses],
+    #      "Cache (mode: #{mode}) lookup response must use cache entries created by warmup"
+    #     )
+    #   end
+    # end
 
     @queries = orig_queries
   end
